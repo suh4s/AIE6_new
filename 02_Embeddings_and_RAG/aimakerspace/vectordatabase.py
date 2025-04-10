@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import List, Tuple, Callable
 from aimakerspace.openai_utils.embedding import EmbeddingModel
 import asyncio
+import faiss
 
 
 def cosine_similarity(vector_a: np.array, vector_b: np.array) -> float:
@@ -11,6 +12,22 @@ def cosine_similarity(vector_a: np.array, vector_b: np.array) -> float:
     norm_a = np.linalg.norm(vector_a)
     norm_b = np.linalg.norm(vector_b)
     return dot_product / (norm_a * norm_b)
+
+
+def lsh_similarity(vector_a: np.array, vector_b: np.array) -> float:
+    """Computes the LSH similarity between two vectors using Faiss."""
+    dimension = len(vector_a)
+    # Create a random rotation matrix
+    random_rotation = faiss.RandomRotationMatrix(dimension)
+    # Apply the rotation
+    rotated_a = random_rotation.apply(vector_a)
+    rotated_b = random_rotation.apply(vector_b)
+    # Use Faiss's L2 distance to approximate similarity
+    index = faiss.IndexFlatL2(dimension)
+    index.add(np.array([rotated_b]))
+    _, distances = index.search(np.array([rotated_a]), 1)
+    # Convert distance to similarity
+    return 1 / (1 + distances[0][0])
 
 
 class VectorDatabase:
@@ -37,7 +54,7 @@ class VectorDatabase:
         self,
         query_text: str,
         k: int,
-        distance_measure: Callable = cosine_similarity,
+        distance_measure: Callable = lsh_similarity,
         return_as_text: bool = False,
     ) -> List[Tuple[str, float]]:
         query_vector = self.embedding_model.get_embedding(query_text)
