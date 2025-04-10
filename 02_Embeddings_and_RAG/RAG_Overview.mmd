@@ -1,0 +1,79 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'fontSize': '16px',
+    'fontFamily': '-apple-system, system-ui, sans-serif',
+    'lineColor': '#788AA3',
+    'primaryColor': '#F5F7F6',
+    'primaryTextColor': '#2F2F2F',
+    'primaryBorderColor': '#2A4D4E',
+    'secondaryColor': '#F5F7F6',
+    'tertiaryColor': '#F2B6A0',
+    'mainBkg': '#F5F7F6',
+    'nodeBorder': '#2A4D4E',
+    'clusterBkg': '#F5F7F6',
+    'edgeLabelBackground': '#F5F7F6',
+    'titleColor': '#2A4D4E',
+    'clusterBorder': '#788AA3'
+  }
+}}%%
+
+flowchart LR
+    %% Define nodes with better styling and icons
+    user(("👤 User")):::user
+    app["🖥️ Web App / API"]:::app
+    retriever["🔍 Retriever Service"]:::service
+    generator["⚙️ Generator Service"]:::service
+    vector_db[("💾 Vector DB")]:::database
+    llm{{"🤖 LLM"}}:::llm
+
+    %% Define subgraph for RAG Application with better styling
+    subgraph RAG["RAG Application"]
+        direction TB
+        app
+        retriever
+        generator
+    end
+
+    %% Define relationships with better styling and positioning
+    user --->|" (1) Query "|app
+    app --->|" (2) Query "|retriever
+    retriever --->|" (3) Search "|vector_db
+    vector_db --->|" (4) Context "|retriever
+    retriever --->|" (5) Context "|app
+    app --->|" (6) Query+Context "|generator
+    generator --->|" (7) Prompt "|llm
+    generator --->|" (8) Answer "|app
+    app --->|" (9) Answer "|user
+
+    %% Add better styling with soft neutral colors and rounded corners
+    classDef default fill:#F5F7F6,stroke:#2A4D4E,stroke-width:1px,color:#2F2F2F,rx:10;
+    
+    %% User node with teal background
+    classDef user fill:#F5F7F6,stroke-width:3px,stroke:#2A4D4E,color:#2F2F2F,font-weight:500;
+    
+    %% App nodes with coral accents
+    classDef app fill:#F5F7F6,stroke:#F2B6A0,stroke-width:2px,color:#2F2F2F,font-weight:500,rx:12;
+    
+    %% Service nodes with slate blue accents
+    classDef service fill:#F5F7F6,stroke:#788AA3,stroke-width:2px,color:#2F2F2F,font-weight:500,rx:12;
+    
+    %% Database with olive dust accents
+    classDef database fill:#F5F7F6,stroke:#A8BBA3,stroke-width:3px,color:#2F2F2F,font-weight:500;
+    
+    %% LLM with coral highlight
+    classDef llm fill:#F5F7F6,stroke:#F2B6A0,stroke-width:3px,color:#2F2F2F,font-weight:500,rx:12;
+    
+    %% Container with transparent teal hint
+    classDef rag-container fill:#F5F7F6,stroke:#788AA3,stroke-width:2px,color:#2F2F2F,rx:15;
+
+    %% Apply classes
+    class user user;
+    class app app;
+    class retriever,generator service;
+    class vector_db database;
+    class llm llm;
+    class RAG rag-container;
+
+    %% Link styling
+    linkStyle default stroke:#788AA3,stroke-width:2px; 
