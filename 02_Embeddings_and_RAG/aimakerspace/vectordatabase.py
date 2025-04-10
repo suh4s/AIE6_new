@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import List, Tuple, Callable
 from aimakerspace.openai_utils.embedding import EmbeddingModel
 import asyncio
-import faiss
+from annoy import AnnoyIndex
 
 
 def cosine_similarity(vector_a: np.array, vector_b: np.array) -> float:
@@ -14,29 +14,48 @@ def cosine_similarity(vector_a: np.array, vector_b: np.array) -> float:
     return dot_product / (norm_a * norm_b)
 
 
-def lsh_similarity(vector_a: np.array, vector_b: np.array) -> float:
-    """Computes the LSH similarity between two vectors using Faiss."""
-    dimension = len(vector_a)
-    # Create a random rotation matrix
-    random_rotation = faiss.RandomRotationMatrix(dimension)
-    # Apply the rotation
-    rotated_a = random_rotation.apply(vector_a)
-    rotated_b = random_rotation.apply(vector_b)
-    # Use Faiss's L2 distance to approximate similarity
-    index = faiss.IndexFlatL2(dimension)
-    index.add(np.array([rotated_b]))
-    _, distances = index.search(np.array([rotated_a]), 1)
-    # Convert distance to similarity
-    return 1 / (1 + distances[0][0])
+def annoy_similarity(vector_a: np.array, vector_b: np.array) -> float:
+    """Computes similarity between two vectors using Annoy (Random Projection Trees)."""
+    try:
+        # Get dimension of vectors
+        dimension = len(vector_a)
+        
+        # Create Annoy index with angular distance (cosine distance)
+        # The 'angular' distance corresponds to cosine distance, so we use it for similarity
+        index = AnnoyIndex(dimension, 'angular')
+        
+        # Add the second vector
+        index.add_item(0, vector_b)
+        
+        # Build the index with 10 trees (more trees = more accuracy but slower build)
+        index.build(10)
+        
+        # Get distance
+        # Angular distance is 2*(1-cos(angle)), so we need to convert back to similarity
+        _, distances = index.get_nns_by_vector(vector_a, 1, include_distances=True)
+        distance = distances[0]
+        
+        # Convert angular distance to cosine similarity
+        # angular_distance = 2*(1-cos(angle)), so cos(angle) = 1 - angular_distance/2
+        similarity = 1.0 - (distance / 2.0)
+        
+        return similarity
+    except Exception as e:
+        # Fallback to cosine similarity if Annoy fails
+        print(f"Annoy error: {e}. Falling back to cosine similarity.")
+        return cosine_similarity(vector_a, vector_b)
 
 
 class VectorDatabase:
     def __init__(self, embedding_model: EmbeddingModel = None):
         self.vectors = defaultdict(np.array)
+        self.metadata = defaultdict(dict)
         self.embedding_model = embedding_model or EmbeddingModel()
 
-    def insert(self, key: str, vector: np.array) -> None:
+    def insert(self, key: str, vector: np.array, metadata: dict = None) -> None:
         self.vectors[key] = vector
+        if metadata:
+            self.metadata[key] = metadata
 
     def search(
         self,
@@ -54,7 +73,7 @@ class VectorDatabase:
         self,
         query_text: str,
         k: int,
-        distance_measure: Callable = lsh_similarity,
+        distance_measure: Callable = cosine_similarity,
         return_as_text: bool = False,
     ) -> List[Tuple[str, float]]:
         query_vector = self.embedding_model.get_embedding(query_text)
@@ -69,6 +88,9 @@ class VectorDatabase:
         for text, embedding in zip(list_of_text, embeddings):
             self.insert(text, np.array(embedding))
         return self
+
+    def get_metadata(self, key: str) -> dict:
+        return self.metadata.get(key, {})
 
 
 if __name__ == "__main__":
