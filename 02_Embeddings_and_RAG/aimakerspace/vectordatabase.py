@@ -15,29 +15,26 @@ def cosine_similarity(vector_a: np.array, vector_b: np.array) -> float:
 
 
 def annoy_similarity(vector_a: np.array, vector_b: np.array) -> float:
-    """Computes similarity between two vectors using Annoy (Random Projection Trees)."""
+    """Computes similarity between two vectors using Annoy (Random-Projection Trees)."""
     try:
-        # Get dimension of vectors
         dimension = len(vector_a)
+        # Create an Annoy index with the appropriate dimension
+        index = AnnoyIndex(dimension, 'angular')  # 'angular' is for cosine distance
         
-        # Create Annoy index with angular distance (cosine distance)
-        # The 'angular' distance corresponds to cosine distance, so we use it for similarity
-        index = AnnoyIndex(dimension, 'angular')
-        
-        # Add the second vector
+        # Add vector_b to the index (index 0)
         index.add_item(0, vector_b)
         
-        # Build the index with 10 trees (more trees = more accuracy but slower build)
+        # Build the index with 10 trees for balance of speed/accuracy
         index.build(10)
         
-        # Get distance
-        # Angular distance is 2*(1-cos(angle)), so we need to convert back to similarity
+        # Search for nearest neighbor to vector_a
+        # Returns (list of indices, list of distances)
         _, distances = index.get_nns_by_vector(vector_a, 1, include_distances=True)
-        distance = distances[0]
         
-        # Convert angular distance to cosine similarity
-        # angular_distance = 2*(1-cos(angle)), so cos(angle) = 1 - angular_distance/2
-        similarity = 1.0 - (distance / 2.0)
+        # Convert distance to similarity (annoy returns angular distance)
+        # Angular distance varies from 0 (identical) to 2 (completely opposite)
+        # Convert to a similarity score between 0 and 1
+        similarity = 1.0 - (distances[0] / 2.0)
         
         return similarity
     except Exception as e:
@@ -73,7 +70,7 @@ class VectorDatabase:
         self,
         query_text: str,
         k: int,
-        distance_measure: Callable = cosine_similarity,
+        distance_measure: Callable = annoy_similarity,
         return_as_text: bool = False,
     ) -> List[Tuple[str, float]]:
         query_vector = self.embedding_model.get_embedding(query_text)
