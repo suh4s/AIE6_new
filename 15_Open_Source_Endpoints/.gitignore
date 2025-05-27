@@ -26,4 +26,9 @@ node_modules/
 
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# Removed large binary files from history
+02_Embeddings_and_RAG/RAG Overview.png
+02_Embeddings_and_RAG/images/docchain_img.png
+07_Synthetic_Data_Generation_and_LangSmith/Assignment 7 - comparing default and dope RAG responses - Screenshot 2025-05-04 164836.png 
